@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0078d7">
+  <meta name="description" content="Ứng dụng tra cứu mã ICD-10">
+  <title>Tra cứu ICD</title>
+  <link rel="manifest" href="manifest.json">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --bg-color: #f8f9fa;
+      --text-color: #333;
+      --container-bg: #fff;
+      --input-border: #ced4da;
+      --input-focus: #80bdff;
+      --primary-color: #0078d7;
+      --primary-hover: #0069c0;
+      --table-header: #f1f3f5;
+      --table-border: #e9ecef;
+      --table-row-even: #f8f9fa;
+      --shadow-color: rgba(0,0,0,0.1);
+      --success-color: #28a745;
+      --error-color: #dc3545;
+      --warning-color: #ffc107;
+      --border-radius: 8px;
+      --transition: all 0.2s ease-in-out;
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #0d1117;
+      --text-color: #e0e0e0;
+      --container-bg: #161b22;
+      --input-border: #30363d;
+      --input-focus: #4da6ff;
+      --primary-color: #4da6ff;
+      --primary-hover: #3a8bd9;
+      --table-header: #2d2d2d;
+      --table-border: #444;
+      --table-row-even: #0d1117;
+      --shadow-color: rgba(1,4,9,0.5);
+    }
+
+    body {
+      font-family: 'Roboto', 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, var(--bg-color) 0%, #ebedee 100%);
+      padding: 20px;
+      color: var(--text-color);
+      transition: var(--transition);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    [data-theme="dark"] body {
+      background: linear-gradient(135deg, var(--bg-color) 0%, #161b22 100%);
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 30px auto;
+      background: var(--container-bg);
+      padding: 30px;
+      border-radius: var(--border-radius);
+      box-shadow: 0 10px 30px var(--shadow-color);
+      transition: var(--transition);
+    }
+
+    h1 {
+      text-align: center;
+      color: var(--primary-color);
+      margin-bottom: 30px;
+      font-weight: 700;
+      font-size: 2.2rem;
+      position: relative;
+      padding-bottom: 15px;
+    }
+
+    h1:after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      height: 3px;
+      background: var(--primary-color);
+      border-radius: 3px;
+    }
+
+    .search-container {
+      position: relative;
+      margin-bottom: 25px;
+    }
+
+    input {
+      width: 100%;
+      padding: 15px 20px 15px 45px;
+      font-size: 16px;
+      border-radius: var(--border-radius);
+      border: 2px solid var(--input-border);
+      background: var(--container-bg);
+      color: var(--text-color);
+      transition: var(--transition);
+      box-sizing: border-box;
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%236c757d" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>');
+      background-repeat: no-repeat;
+      background-position: 15px center;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--input-focus);
+      box-shadow: 0 0 0 0.2rem rgba(0, 120, 215, 0.25);
+      transform: translateY(-2px);
+    }
+
+    .autocomplete-items {
+      position: absolute;
+      border: 2px solid var(--input-border);
+      border-top: none;
+      border-radius: 0 0 var(--border-radius) var(--border-radius);
+      z-index: 99;
+      top: 100%;
+      left: 0;
+      right: 0;
+      max-height: 300px;
+      overflow-y: auto;
+      background: var(--container-bg);
+      box-shadow: 0 5px 15px var(--shadow-color);
+    }
+
+    .autocomplete-items div {
+      padding: 12px 20px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--input-border);
+      transition: var(--transition);
+    }
+
+    .autocomplete-items div:hover {
+      background-color: var(--primary-color);
+      color: white;
+    }
+
+    .status-container {
+      margin: 25px 0;
+      text-align: center;
+    }
+
+    .loading {
+      display: inline-block;
+      padding: 15px 25px;
+      background: rgba(0, 120, 215, 0.1);
+      border-radius: var(--border-radius);
+      color: var(--primary-color);
+      font-weight: 500;
+    }
+
+    .loading:after {
+      content: "...";
+      animation: dots 1.5s steps(5, end) infinite;
+    }
+
+    @keyframes dots {
+      0%, 20% { content: "."; }
+      40% { content: ".."; }
+      60%, 100% { content: "..."; }
+    }
+
+    .error {
+      display: inline-block;
+      padding: 15px 25px;
+      background: rgba(220, 53, 69, 0.1);
+      border-radius: var(--border-radius);
+      color: var(--error-color);
+      font-weight: 500;
+    }
+
+    .success {
+      display: inline-block;
+      padding: 15px 25px;
+      background: rgba(40, 167, 69, 0.1);
+      border-radius: var(--border-radius);
+      color: var(--success-color);
+      font-weight: 500;
+    }
+
+    .progress-container {
+      width: 100%;
+      height: 4px;
+      background: rgba(0, 120, 215, 0.1);
+      border-radius: 2px;
+      margin: 20px 0;
+      display: none;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0;
+      background: var(--primary-color);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 15px;
+      margin-top: 25px;
+      display: none;
+    }
+
+    .icd-card {
+      border-radius: var(--border-radius);
+      padding: 15px;
+      background: var(--container-bg);
+      box-shadow: 0 3px 10px var(--shadow-color);
+      border-left: 4px solid var(--primary-color);
+      transition: transform 0.2s;
+    }
+
+    .icd-card:hover {
+      transform: translateY(-3px);
+    }
+
+    .icd-code {
+      font-weight: bold;
+      color: var(--primary-color);
+      margin-bottom: 8px;
+    }
+
+    .icd-desc h3 {
+      margin: 0 0 5px 0;
+      font-size: 1em;
+    }
+
+    .icd-desc p {
+      margin: 0;
+      font-size: 0.9em;
+      color: var(--text-color);
+      opacity: 0.8;
+      font-style: italic;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 25px;
+      font-size: 15px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
+      border-radius: var(--border-radius);
+      overflow: hidden;
+      display: none;
+    }
+
+    th, td {
+      padding: 15px 20px;
+      text-align: left;
+      border-bottom: 1px solid var(--table-border);
+    }
+
+    th {
+      background-color: var(--primary-color);
+      color: white;
+      font-weight: 500;
+      text-transform: uppercase;
+      font-size: 0.85em;
+      letter-spacing: 0.5px;
+    }
+
+    tr:nth-child(even) {
+      background-color: var(--table-row-even);
+    }
+
+    tr:hover {
+      background-color: rgba(0, 120, 215, 0.1);
+    }
+
+    .no-results {
+      text-align: center;
+      padding: 40px 20px;
+      display: none;
+    }
+
+    .no-results img {
+      opacity: 0.7;
+      margin-bottom: 20px;
+    }
+
+    .no-results h3 {
+      color: var(--text-color);
+      margin-bottom: 10px;
+    }
+
+    .no-results p {
+      color: var(--text-color);
+      opacity: 0.7;
+    }
+
+    .no-results button {
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 20px;
+      margin-top: 15px;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .no-results button:hover {
+      background: var(--primary-hover);
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      font-size: 14px;
+      color: #6c757d;
+      padding-top: 20px;
+      border-top: 1px solid var(--table-border);
+    }
+
+    .footer a {
+      color: var(--primary-color);
+      text-decoration: none;
+      transition: var(--transition);
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    .theme-toggle {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 10px var(--shadow-color);
+      z-index: 100;
+      transition: var(--transition);
+    }
+
+    .theme-toggle:hover {
+      background: var(--primary-hover);
+      transform: translateY(-2px);
+    }
+
+    .install-btn {
+      position: fixed;
+      bottom: 80px;
+      right: 20px;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 10px var(--shadow-color);
+      z-index: 100;
+      font-size: 20px;
+      transition: var(--transition);
+    }
+
+    .install-btn:hover {
+      background: var(--primary-hover);
+      transform: translateY(-2px);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 0.75em;
+      font-weight: bold;
+      background: var(--primary-color);
+      color: white;
+      margin-left: 10px;
+      vertical-align: middle;
+    }
+
+    .results-count {
+      margin-top: 15px;
+      font-size: 0.9em;
+      color: #6c757d;
+      text-align: right;
+      display: none;
+    }
+
+    .view-toggle {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 10px;
+    }
+
+    .view-toggle button {
+      background: none;
+      border: none;
+      color: var(--text-color);
+      cursor: pointer;
+      padding: 5px 10px;
+      border-radius: 4px;
+      margin-left: 5px;
+      transition: var(--transition);
+    }
+
+    .view-toggle button.active {
+      background: var(--primary-color);
+      color: white;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+      
+      .container {
+        padding: 20px;
+        margin: 10px auto;
+      }
+      
+      h1 {
+        font-size: 1.8rem;
+      }
+      
+      th, td {
+        padding: 12px 15px;
+        font-size: 14px;
+      }
+
+      input {
+        padding: 12px 15px 12px 40px;
+        background-position: 10px center;
+      }
+
+      .theme-toggle, .install-btn {
+        width: 45px;
+        height: 45px;
+      }
+
+      .install-btn {
+        bottom: 75px;
+      }
+
+      .results-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .container {
+        padding: 15px;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      th, td {
+        padding: 10px 12px;
+        font-size: 13px;
+      }
+
+      .autocomplete-items div {
+        padding: 10px 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <button class="theme-toggle" id="themeToggle">🌓</button>
+  <button class="install-btn" id="installBtn" title="Cài đặt ứng dụng" style="display: none;">⬇️</button>
+
+  <div class="container">
+    <h1>Tra cứu ICD-10 <span class="badge">Phiên bản 2.0</span></h1>
+    
+    <div class="search-container">
+      <input type="text" id="searchInput" placeholder="Nhập mã ICD, tên bệnh bằng tiếng Việt hoặc tiếng Anh...">
+      <div id="autocompleteList" class="autocomplete-items"></div>
+    </div>
+    
+    <div class="status-container">
+      <div id="status" class="loading">Đang tải dữ liệu ICD10 từ máy chủ</div>
+      <div id="error" class="error" style="display: none;"></div>
+      <div class="progress-container" id="progressContainer">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+    </div>
+    
+    <div id="results">
+      <div class="view-toggle" id="viewToggle" style="display: none;">
+        <button class="active" data-view="table">Bảng</button>
+        <button data-view="grid">Thẻ</button>
+      </div>
+      <div id="resultsCount" class="results-count"></div>
+      
+      <!-- Bảng kết quả -->
+      <table id="resultsTable">
+        <thead>
+          <tr>
+            <th>Mã ICD</th>
+            <th>Tên bệnh (Tiếng Việt)</th>
+            <th>Tên bệnh (Tiếng Anh)</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+      
+      <!-- Thẻ kết quả -->
+      <div id="resultsGrid" class="results-grid"></div>
+      
+      <!-- Không có kết quả -->
+      <div id="noResults" class="no-results">
+        <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          <line x1="11" y1="8" x2="11" y2="13"></line>
+          <line x1="11" y1="16" x2="11.01" y2="16"></line>
+        </svg>
+        <h3>Không tìm thấy kết quả</h3>
+        <p>Thử với từ khóa ngắn gọn hơn hoặc mã ICD khác</p>
+      </div>
+    </div>
+    
+    <div class="footer">
+      Thiết kế bởi <a href="http://fb.com/chauhuynh0104" target="_blank">Dr. Châu</a><br>
+      
+    </div>
+  </div>
+
+  <script>
+    // Dữ liệu ICD
+    let icdData = [];
+    let deferredPrompt;
+    let currentView = 'table'; // 'table' hoặc 'grid'
+
+    // URL dữ liệu từ GitHub
+    const githubURL = "https://raw.githubusercontent.com/chauhuynh0104/my-auth-data/refs/heads/main/icd.xls";
+
+    // Tải dữ liệu ICD với progress bar
+    function loadICDData() {
+      document.getElementById('progressContainer').style.display = 'block';
+      
+      fetch(githubURL)
+        .then(res => {
+          if (!res.ok) throw new Error("Network response was not ok");
+          const contentLength = +res.headers.get('Content-Length');
+          let receivedLength = 0;
+          const reader = res.body.getReader();
+          const chunks = [];
+          
+          return new ReadableStream({
+            start(controller) {
+              function push() {
+                reader.read().then(({done, value}) => {
+                  if (done) {
+                    controller.close();
+                    return;
+                  }
+                  chunks.push(value);
+                  receivedLength += value.length;
+                  updateProgress(receivedLength / contentLength * 100);
+                  controller.enqueue(value);
+                  push();
+                });
+              }
+              push();
+            }
+          });
+        })
+        .then(stream => new Response(stream))
+        .then(res => res.arrayBuffer())
+        .then(buffer => {
+          const wb = XLSX.read(buffer, { type: "array" });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+          icdData = json.slice(8).map(row => ({
+            code: row[1]?.toString().trim() || "",
+            vietnamese: row[2]?.toString().trim() || "",
+            english: row[3]?.toString().trim() || ""
+          }));
+
+          document.getElementById("status").textContent = icdData.length > 0 ? 
+            `Đã tải thành công ${icdData.length} mã ICD. Bắt đầu tra cứu...` : 
+            "Không có dữ liệu ICD nào được tìm thấy.";
+          
+          if (icdData.length > 0) {
+            document.getElementById("status").className = "success";
+            setTimeout(() => {
+              document.getElementById("status").style.display = "none";
+              document.getElementById('progressContainer').style.display = 'none';
+            }, 2000);
+          }
+        })
+        .catch(err => {
+          document.getElementById("status").style.display = "none";
+          document.getElementById("error").style.display = "block";
+          document.getElementById("error").textContent = "❌ Không tải được dữ liệu. Vui lòng kiểm tra kết nối internet và thử lại.";
+          document.getElementById('progressContainer').style.display = 'none';
+          console.error(err);
+        });
+    }
+
+    function updateProgress(percent) {
+      document.getElementById('progressBar').style.width = `${percent}%`;
+    }
+
+    // Tìm kiếm ICD
+    function searchICD() {
+      const query = document.getElementById("searchInput").value.trim().toLowerCase();
+      const resultsBody = document.getElementById("resultsBody");
+      const resultsGrid = document.getElementById("resultsGrid");
+      const resultsTable = document.getElementById("resultsTable");
+      const resultsCount = document.getElementById("resultsCount");
+      const noResults = document.getElementById("noResults");
+      const viewToggle = document.getElementById("viewToggle");
+      
+      resultsBody.innerHTML = "";
+      resultsGrid.innerHTML = "";
+      resultsCount.style.display = "none";
+      noResults.style.display = "none";
+      viewToggle.style.display = "none";
+
+      if (query.length === 0) {
+        resultsTable.style.display = "none";
+        resultsGrid.style.display = "none";
+        return;
+      }
+
+      const matches = icdData.filter(item =>
+        item.code.toLowerCase().includes(query) ||
+        item.vietnamese.toLowerCase().includes(query) ||
+        item.english.toLowerCase().includes(query)
+      );
+
+      if (matches.length === 0) {
+        resultsTable.style.display = "none";
+        resultsGrid.style.display = "none";
+        document.getElementById("error").style.display = "block";
+        document.getElementById("error").textContent = "Không tìm thấy kết quả nào phù hợp. Vui lòng thử từ khoá khác.";
+        noResults.style.display = "block";
+        return;
+      }
+
+      document.getElementById("error").style.display = "none";
+      viewToggle.style.display = "flex";
+      resultsCount.style.display = "block";
+      resultsCount.textContent = `Tìm thấy ${matches.length} kết quả`;
+
+      // Hiển thị theo chế độ xem hiện tại
+      if (currentView === 'table') {
+        displayResultsAsTable(matches);
+      } else {
+        displayResultsAsGrid(matches);
+      }
+
+      if (matches.length > 100) {
+        const message = `Hiển thị 100/${matches.length} kết quả. Vui lòng nhập cụ thể hơn để thu hẹp kết quả.`;
+        if (currentView === 'table') {
+          const row = document.createElement("tr");
+          const cell = document.createElement("td");
+          cell.colSpan = 3;
+          cell.textContent = message;
+          cell.style.textAlign = "center";
+          cell.style.fontStyle = "italic";
+          cell.style.color = "#6c757d";
+          row.appendChild(cell);
+          resultsBody.appendChild(row);
+        } else {
+          const messageDiv = document.createElement("div");
+          messageDiv.textContent = message;
+          messageDiv.style.gridColumn = "1 / -1";
+          messageDiv.style.textAlign = "center";
+          messageDiv.style.fontStyle = "italic";
+          messageDiv.style.color = "#6c757d";
+          messageDiv.style.padding = "10px";
+          resultsGrid.appendChild(messageDiv);
+        }
+      }
+    }
+
+    function displayResultsAsTable(matches) {
+      const resultsBody = document.getElementById("resultsBody");
+      const resultsTable = document.getElementById("resultsTable");
+      const resultsGrid = document.getElementById("resultsGrid");
+      
+      resultsGrid.style.display = "none";
+      resultsTable.style.display = "table";
+      resultsBody.innerHTML = "";
+
+      matches.slice(0, 100).forEach(item => {
+        const row = document.createElement("tr");
+        
+        const codeCell = document.createElement("td");
+        codeCell.textContent = item.code;
+        codeCell.style.fontWeight = "bold";
+        codeCell.style.color = "var(--primary-color)";
+        
+        const vnCell = document.createElement("td");
+        vnCell.textContent = item.vietnamese;
+        
+        const enCell = document.createElement("td");
+        enCell.textContent = item.english;
+        enCell.style.fontStyle = "italic";
+        
+        row.appendChild(codeCell);
+        row.appendChild(vnCell);
+        row.appendChild(enCell);
+        resultsBody.appendChild(row);
+      });
+    }
+
+    function displayResultsAsGrid(matches) {
+      const resultsGrid = document.getElementById("resultsGrid");
+      const resultsTable = document.getElementById("resultsTable");
+      
+      resultsTable.style.display = "none";
+      resultsGrid.style.display = "grid";
+      resultsGrid.innerHTML = "";
+
+      matches.slice(0, 100).forEach(item => {
+        const card = document.createElement("div");
+        card.className = "icd-card";
+        
+        const codeDiv = document.createElement("div");
+        codeDiv.className = "icd-code";
+        codeDiv.textContent = item.code;
+        
+        const descDiv = document.createElement("div");
+        descDiv.className = "icd-desc";
+        
+        const vnTitle = document.createElement("h3");
+        vnTitle.textContent = item.vietnamese;
+        
+        const enPara = document.createElement("p");
+        enPara.textContent = item.english;
+        
+        descDiv.appendChild(vnTitle);
+        descDiv.appendChild(enPara);
+        card.appendChild(codeDiv);
+        card.appendChild(descDiv);
+        resultsGrid.appendChild(card);
+      });
+    }
+
+    // Tự động gợi ý
+    function setupAutocomplete() {
+      const input = document.getElementById("searchInput");
+      const autocompleteList = document.getElementById("autocompleteList");
+
+      input.addEventListener("input", function() {
+        const query = this.value.trim().toLowerCase();
+        autocompleteList.innerHTML = "";
+
+        if (query.length === 0) return;
+
+        const matches = icdData.filter(item =>
+          item.code.toLowerCase().includes(query) ||
+          item.vietnamese.toLowerCase().includes(query) ||
+          item.english.toLowerCase().includes(query)
+        ).slice(0, 10);
+
+        matches.forEach(item => {
+          const itemElement = document.createElement("div");
+          
+          // Highlight matching text
+          const displayText = `${item.code} - ${item.vietnamese} (${item.english})`;
+          const highlightedText = displayText.replace(new RegExp(query, "gi"), match => 
+            `<span style="background-color: var(--warning-color); color: black">${match}</span>`
+          );
+          
+          itemElement.innerHTML = highlightedText;
+          itemElement.addEventListener("click", function() {
+            input.value = item.code;
+            autocompleteList.innerHTML = "";
+            searchICD();
+          });
+          autocompleteList.appendChild(itemElement);
+        });
+      });
+
+      // Ẩn danh sách gợi ý khi click ra ngoài
+      document.addEventListener("click", function(e) {
+        if (e.target !== input) {
+          autocompleteList.innerHTML = "";
+        }
+      });
+    }
+
+    // Chế độ tối
+    function setupThemeToggle() {
+      const themeToggle = document.getElementById("themeToggle");
+      const currentTheme = localStorage.getItem("theme") || "light";
+
+      if (currentTheme === "dark") {
+        document.documentElement.setAttribute("data-theme", "dark");
+      }
+
+      themeToggle.addEventListener("click", function() {
+        const currentTheme = document.documentElement.getAttribute("data-theme");
+        if (currentTheme === "dark") {
+          document.documentElement.removeAttribute("data-theme");
+          localStorage.setItem("theme", "light");
+        } else {
+          document.documentElement.setAttribute("data-theme", "dark");
+          localStorage.setItem("theme", "dark");
+        }
+      });
+    }
+
+    // Chuyển đổi giữa chế độ xem bảng và thẻ
+    function setupViewToggle() {
+      const viewToggle = document.getElementById("viewToggle");
+      
+      viewToggle.addEventListener("click", function(e) {
+        if (e.target.tagName === 'BUTTON') {
+          const view = e.target.dataset.view;
+          if (view === currentView) return;
+          
+          currentView = view;
+          document.querySelectorAll('#viewToggle button').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.view === view);
+          });
+          
+          const query = document.getElementById("searchInput").value.trim();
+          if (query) {
+            searchICD();
+          }
+        }
+      });
+    }
+
+    // PWA Installation
+    function setupPWA() {
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        const installBtn = document.getElementById('installBtn');
+        installBtn.style.display = 'flex';
+        
+        installBtn.addEventListener('click', () => {
+          installBtn.style.display = 'none';
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+              console.log('User accepted install');
+            } else {
+              console.log('User dismissed install');
+            }
+            deferredPrompt = null;
+          });
+        });
+      });
+
+      window.addEventListener('appinstalled', () => {
+        console.log('App installed');
+        document.getElementById('installBtn').style.display = 'none';
+      });
+    }
+
+    // Khởi tạo ứng dụng
+    window.addEventListener("DOMContentLoaded", function() {
+      setupAutocomplete();
+      setupThemeToggle();
+      setupViewToggle();
+      setupPWA();
+      
+      document.getElementById("searchInput").addEventListener("input", searchICD);
+      loadICDData();
+    });
+
+    // Service Worker cho PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').then(registration => {
+          console.log('ServiceWorker registration successful');
+        }).catch(err => {
+          console.log('ServiceWorker registration failed: ', err);
+        });
+      });
+    }
+  </script>
+
+  <script>
+    // File manifest.json nội tuyến
+    const manifest = {
+      "name": "Tra cứu ICD",
+      "short_name": "ICD Search",
+      "description": "Ứng dụng tra cứu mã ICD-10",
+      "start_url": ".",
+      "display": "standalone",
+      "background_color": "#ffffff",
+      "theme_color": "#0078d7",
+      "icons": [
+        {
+          "src": "icons/icon-72x72.png",
+          "sizes": "72x72",
+          "type": "image/png"
+        },
+        {
+          "src": "icons/icon-96x96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        },
+        {
+          "src": "icons/icon-128x128.png",
+          "sizes": "128x128",
+          "type": "image/png"
+        },
+        {
+          "src": "icons/icon-144x144.png",
+          "sizes": "144x144",
+          "type": "image/png"
+        },
+        {
+          "src": "icons/icon-152x152.png",
+          "sizes": "152x152",
+          "type": "image/png"
+        },
+        {
+          "src": "icons/icon-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        },
+        {
+          "src": "icons/icon-384x384.png",
+          "sizes": "384x384",
+          "type": "image/png"
+        },
+        {
+          "src": "icons/icon-512x512.png",
+          "sizes": "512x512",
+          "type": "image/png"
+        }
+      ]
+    };
+
+    // Tạo blob URL cho manifest
+    const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+    const manifestURL = URL.createObjectURL(blob);
+    
+    // Tạo thẻ link manifest
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = manifestURL;
+    document.head.appendChild(link);
+
+    // Service Worker script nội tuyến
+    const swScript = `
+      const CACHE_NAME = 'icd-search-v2';
+      const urlsToCache = [
+        '/',
+        'index.html',
+        'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+      ];
+
+      self.addEventListener('install', event => {
+        event.waitUntil(
+          caches.open(CACHE_NAME)
+            .then(cache => {
+              return cache.addAll(urlsToCache);
+            })
+        );
+      });
+
+      self.addEventListener('fetch', event => {
+        event.respondWith(
+          caches.match(event.request)
+            .then(response => {
+              if (response) {
+                return response;
+              }
+              return fetch(event.request);
+            }
+          )
+        );
+      });
+    `;
+
+    // Tạo blob URL cho service worker
+    const swBlob = new Blob([swScript], {type: 'application/javascript'});
+    const swURL = URL.createObjectURL(swBlob);
+
+    // Đăng ký service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register(swURL)
+        .then(registration => {
+          console.log('Service Worker registered with scope:', registration.scope);
+        })
+        .catch(error => {
+          console.log('Service Worker registration failed:', error);
+        });
+    }
+  </script>
+</body>
+</html>
