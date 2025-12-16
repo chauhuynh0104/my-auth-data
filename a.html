@@ -11,6 +11,7 @@
         input {
             padding: 6px;
             margin: 5px 0;
+            width: 150px;
         }
         #result {
             margin-top: 15px;
@@ -20,13 +21,13 @@
 </head>
 <body>
 
-<h3>Chọn thời gian</h3>
+<h3>Nhập thời gian</h3>
 
 <label>Từ ngày:</label><br>
-<input type="date" id="startDate"><br>
+<input type="text" id="startDate" placeholder="19/6/2025"><br>
 
 <label>Đến ngày:</label><br>
-<input type="date" id="endDate"><br>
+<input type="text" id="endDate" placeholder="3/7/2025"><br>
 
 <div id="result"></div>
 
@@ -35,12 +36,16 @@
     const endInput = document.getElementById("endDate");
     const result = document.getElementById("result");
 
-    function formatDate(dateStr) {
-        if (!dateStr) return "";
-        const d = new Date(dateStr);
-        const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const year = d.getFullYear();
+    function formatDate(text) {
+        if (!text) return "";
+
+        const parts = text.replace(/-/g, '/').split('/');
+        if (parts.length !== 3) return text;
+
+        const day = parts[0].padStart(2, '0');
+        const month = parts[1].padStart(2, '0');
+        const year = parts[2];
+
         return `${day}/${month}/${year}`;
     }
 
@@ -53,8 +58,8 @@
         }
     }
 
-    startInput.addEventListener("change", updateText);
-    endInput.addEventListener("change", updateText);
+    startInput.addEventListener("input", updateText);
+    endInput.addEventListener("input", updateText);
 </script>
 
 </body>
