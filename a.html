@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Nhập thời gian</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        input {
+            padding: 6px;
+            margin: 5px 0;
+        }
+        #result {
+            margin-top: 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<h3>Chọn thời gian</h3>
+
+<label>Từ ngày:</label><br>
+<input type="date" id="startDate"><br>
+
+<label>Đến ngày:</label><br>
+<input type="date" id="endDate"><br>
+
+<div id="result"></div>
+
+<script>
+    const startInput = document.getElementById("startDate");
+    const endInput = document.getElementById("endDate");
+    const result = document.getElementById("result");
+
+    function formatDate(dateStr) {
+        if (!dateStr) return "";
+        const d = new Date(dateStr);
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}/${month}/${year}`;
+    }
+
+    function updateText() {
+        if (startInput.value && endInput.value) {
+            result.textContent =
+                `Từ ngày ${formatDate(startInput.value)} đến ngày ${formatDate(endInput.value)} trừ chủ nhật, ngày lễ`;
+        } else {
+            result.textContent = "";
+        }
+    }
+
+    startInput.addEventListener("change", updateText);
+    endInput.addEventListener("change", updateText);
+</script>
+
+</body>
+</html>
